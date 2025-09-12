@@ -103,9 +103,12 @@ Para desarrollo local, servir archivos a través de un servidor web local para e
 
 ## Consideraciones de Seguridad
 
-- Las claves API se almacenan en `config.js` - este archivo no debe ser committeado al control de versiones
-- La aplicación usa llamadas API del lado del cliente, por lo que las claves API son visibles en el navegador
-- Configurar restricciones de clave API en Google Cloud Console para seguridad
+- **API Key visible**: Al ser una aplicación del lado del cliente, la API key es visible en el código fuente
+- **Protección mediante restricciones**: La seguridad real viene de las restricciones configuradas en Google Cloud Console:
+  - Restricción HTTP Referrer: Solo `*.vercel.app` puede usar la key
+  - API limitations: Solo Google Sheets API habilitada
+- **Buenas prácticas**: Para aplicaciones estáticas, este es el enfoque de seguridad estándar
+- **config.js comprometido**: El archivo está en el repositorio por necesidad operacional, pero protegido por restricciones de dominio
 
 ## Personalización
 
@@ -118,7 +121,34 @@ Las configuraciones de gráficos se definen en `config.js` bajo `CHART_CONFIG`. 
 ### Criterios de Migración
 Las reglas de negocio para el análisis de migración son configurables en `config.js` bajo `MIGRATION_CRITERIA`.
 
-## Funcionalidades Recientes (Última Sesión)
+## Deployment y CI/CD
+
+### Vercel Integration
+- **Auto-deployment**: Configurado con GitHub para deployment automático en cada push a `main`
+- **Production URL**: https://gestor-suro-dashboard.vercel.app
+- **Headers de seguridad**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
+- **Optimización de cache**: Headers controlados para evitar problemas de cache en desarrollo
+
+### Configuración de Seguridad
+- **API Key protegida**: Restricciones de dominio configuradas en Google Cloud Console
+- **Referrer restrictions**: Solo dominios `*.vercel.app` pueden usar la API key
+- **API limitations**: Solo Google Sheets API habilitada, otros servicios bloqueados
+
+## Funcionalidades Recientes
+
+### Mejoras del Mapa (Sesión Actual)
+- **Leyenda reubicada**: Layout vertical al lado del mapa en lugar de overlay
+- **Sidebar informativa**: Panel lateral con leyenda y estadísticas organizadas verticalmente
+- **Responsive design**: En móvil, la sidebar se muestra arriba del mapa
+- **Mejor aprovechamiento del espacio**: Diseño más limpio y profesional
+
+### Popups del Mapa Mejorados
+- **Eliminada "Venta Promedio"**: Información no relevante removida
+- **Ventas por tipo agregadas**: 
+  - **Ventas Nexo**: Monto y porcentaje del total
+  - **Ventas Directa**: Monto y porcentaje del total
+- **Distribución de clientes**: Porcentajes de clientes por tipo de atención
+- **Cálculos automáticos**: Usa la misma lógica de la pestaña Población
 
 ### Panel de Resumen Financiero Consolidado
 Se implementó un panel de resumen que muestra encima de las tablas financieras:
@@ -134,8 +164,7 @@ Se implementó un panel de resumen que muestra encima de las tablas financieras:
 - Conversión de campos editables a campos calculados automáticos
 - Gestión inteligente de recursos con formato de signos (+/-)
 
-### Mejoras de UI/UX
-- Diseño más compacto y profesional
-- Eliminación de elementos innecesarios (títulos redundantes, botones no funcionales)
-- Código de colores mejorado para impacto visual
-- Layout responsivo optimizado para el panel de resumen
+### Conectividad Automática
+- **Configuración automática**: La app se conecta automáticamente a Google Sheets sin intervención manual
+- **Validación mejorada**: Sistema robusto de carga de configuración
+- **Manejo de errores**: Mejor gestión de fallos en la API de Google
