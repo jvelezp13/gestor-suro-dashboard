@@ -56,11 +56,8 @@ class GestorSuroDashboard {
         
         // Filtros del mapa
         this.mapFilters = {
-            showNexo: true,
-            showDirecta: true,
-            showCompartida: true,
-            minSales: 0,
-            minClients: 1
+            showAtencionNexo: true,
+            showAtencionDirecta: true
         };
         
         this.init();
@@ -2981,54 +2978,20 @@ class GestorSuroDashboard {
      * Configura los event listeners para los filtros del mapa
      */
     setupMapFilters() {
-        // Filtros de tipo de población
-        const filterNexo = document.getElementById('filter-nexo');
-        const filterDirecta = document.getElementById('filter-directa');
-        const filterCompartida = document.getElementById('filter-compartida');
+        // Filtros de tipo de atención
+        const filterAtencionNexo = document.getElementById('filter-atencion-nexo');
+        const filterAtencionDirecta = document.getElementById('filter-atencion-directa');
         
-        if (filterNexo) {
-            filterNexo.addEventListener('change', (e) => {
-                this.mapFilters.showNexo = e.target.checked;
+        if (filterAtencionNexo) {
+            filterAtencionNexo.addEventListener('change', (e) => {
+                this.mapFilters.showAtencionNexo = e.target.checked;
                 this.applyMapFilters();
             });
         }
         
-        if (filterDirecta) {
-            filterDirecta.addEventListener('change', (e) => {
-                this.mapFilters.showDirecta = e.target.checked;
-                this.applyMapFilters();
-            });
-        }
-        
-        if (filterCompartida) {
-            filterCompartida.addEventListener('change', (e) => {
-                this.mapFilters.showCompartida = e.target.checked;
-                this.applyMapFilters();
-            });
-        }
-        
-        // Filtro de ventas mínimas
-        const ventasRange = document.getElementById('ventas-range');
-        const ventasValue = document.getElementById('ventas-value');
-        
-        if (ventasRange && ventasValue) {
-            ventasRange.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                this.mapFilters.minSales = value;
-                ventasValue.textContent = this.formatCurrency(value);
-                this.applyMapFilters();
-            });
-        }
-        
-        // Filtro de clientes mínimos
-        const clientesRange = document.getElementById('clientes-range');
-        const clientesValue = document.getElementById('clientes-value');
-        
-        if (clientesRange && clientesValue) {
-            clientesRange.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                this.mapFilters.minClients = value;
-                clientesValue.textContent = value;
+        if (filterAtencionDirecta) {
+            filterAtencionDirecta.addEventListener('change', (e) => {
+                this.mapFilters.showAtencionDirecta = e.target.checked;
                 this.applyMapFilters();
             });
         }
@@ -3077,12 +3040,10 @@ class GestorSuroDashboard {
                 clusterGroup = this.directaClusterGroup;
             }
             
-            // Aplicar filtros
-            const passesTypeFilter = this.locationPassesTypeFilter(populationType);
-            const passesSalesFilter = totalSales >= this.mapFilters.minSales;
-            const passesClientsFilter = totalClients >= this.mapFilters.minClients;
+            // Aplicar filtros de atención
+            const passesAtencionFilter = this.locationPassesAtencionFilter(nexoClients, directaClients);
             
-            if (passesTypeFilter && passesSalesFilter && passesClientsFilter) {
+            if (passesAtencionFilter) {
                 if (lat && lng && !isNaN(lat) && !isNaN(lng) && this.validateColombianCoordinates(lat, lng)) {
                     
                     // Contar por tipo
@@ -3153,19 +3114,29 @@ class GestorSuroDashboard {
     }
 
     /**
-     * Verifica si una ubicación pasa el filtro de tipo
+     * Verifica si una ubicación pasa el filtro de atención
      */
-    locationPassesTypeFilter(populationType) {
-        switch(populationType) {
-            case 'exclusiva-nexo':
-                return this.mapFilters.showNexo;
-            case 'exclusiva-directa':
-                return this.mapFilters.showDirecta;
-            case 'compartida':
-                return this.mapFilters.showCompartida;
-            default:
-                return false;
+    locationPassesAtencionFilter(nexoClients, directaClients) {
+        const hasNexo = nexoClients.length > 0;
+        const hasDirecta = directaClients.length > 0;
+        
+        // Si ambos están desactivados, no mostrar nada
+        if (!this.mapFilters.showAtencionNexo && !this.mapFilters.showAtencionDirecta) {
+            return false;
         }
+        
+        // Si solo Nexo está activado, mostrar solo ubicaciones con clientes Nexo
+        if (this.mapFilters.showAtencionNexo && !this.mapFilters.showAtencionDirecta) {
+            return hasNexo;
+        }
+        
+        // Si solo Directa está activado, mostrar solo ubicaciones con clientes Directa
+        if (!this.mapFilters.showAtencionNexo && this.mapFilters.showAtencionDirecta) {
+            return hasDirecta;
+        }
+        
+        // Si ambos están activados, mostrar todas las ubicaciones
+        return true;
     }
 
     /**
