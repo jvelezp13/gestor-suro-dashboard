@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Gestor Suro - Análisis de Migración</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=1.1">
     <!-- Chart.js para visualizaciones -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Google APIs -->
@@ -362,7 +362,7 @@
         <h2><i class="fas fa-map-marked-alt"></i> Mapa de Clientes por Municipio</h2>
         
         <div class="map-container">
-            <div class="map-controls">
+            <div class="map-sidebar">
                 <div class="map-legend">
                     <h4>Leyenda:</h4>
                     <div class="legend-item">
@@ -382,6 +382,7 @@
                     </div>
                 </div>
                 <div class="map-stats">
+                    <h4>Estadísticas:</h4>
                     <div class="stat-item">
                         <span class="stat-label">Total Ubicaciones:</span>
                         <span id="total-locations" class="stat-value">0</span>
@@ -445,7 +446,7 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=1.1"></script>
+    <script src="app.js?v=1.1"></script>
 </body>
 </html>

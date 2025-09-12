@@ -2835,7 +2835,15 @@ class GestorSuroDashboard {
      * Crea el contenido HTML para el popup del marcador
      */
     createPopupContent(location) {
-        const { ciudad, nexoClients, directaClients, totalClients, totalSales, populationType, avgSales } = location;
+        const { ciudad, nexoClients, directaClients, totalClients, totalSales, populationType } = location;
+        
+        // Calcular ventas por tipo
+        const nexoSales = nexoClients.reduce((sum, client) => sum + (parseFloat(client['Venta Prom']) || 0), 0);
+        const directaSales = directaClients.reduce((sum, client) => sum + (parseFloat(client['Venta Prom']) || 0), 0);
+        
+        // Calcular porcentajes de ventas
+        const nexoSalesPercentage = totalSales > 0 ? Math.round((nexoSales / totalSales) * 100) : 0;
+        const directaSalesPercentage = totalSales > 0 ? Math.round((directaSales / totalSales) * 100) : 0;
         
         // Determinar etiquetas y estilos según el tipo de población
         let typeLabel, typeClass;
@@ -2881,13 +2889,21 @@ class GestorSuroDashboard {
                         <span class="popup-label">Ventas Totales:</span>
                         <span class="popup-value">${this.formatCurrency(totalSales)}</span>
                     </div>
+                    ${nexoSales > 0 ? `
                     <div class="popup-row">
-                        <span class="popup-label">Venta Promedio:</span>
-                        <span class="popup-value">${this.formatCurrency(avgSales)}</span>
+                        <span class="popup-label">Ventas Nexo:</span>
+                        <span class="popup-value">${this.formatCurrency(nexoSales)} (${nexoSalesPercentage}%)</span>
                     </div>
+                    ` : ''}
+                    ${directaSales > 0 ? `
+                    <div class="popup-row">
+                        <span class="popup-label">Ventas Directa:</span>
+                        <span class="popup-value">${this.formatCurrency(directaSales)} (${directaSalesPercentage}%)</span>
+                    </div>
+                    ` : ''}
                     ${nexoClients.length > 0 && directaClients.length > 0 ? `
                     <div class="popup-row">
-                        <span class="popup-label">Distribución:</span>
+                        <span class="popup-label">Distribución Clientes:</span>
                         <span class="popup-value">${Math.round((nexoClients.length/totalClients)*100)}% Nexo / ${Math.round((directaClients.length/totalClients)*100)}% Directa</span>
                     </div>
                     ` : ''}
