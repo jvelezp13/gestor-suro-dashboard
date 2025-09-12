@@ -66,9 +66,11 @@ class GestorSuroDashboard {
         this.setupTabNavigation();
         try {
             await this.loadConfig();
-            await this.connectToGoogleSheets();
-            await this.loadBaseData(); // Carga los datos de referencia primero
-            await this.loadAvailableScenarios(); // Carga los escenarios y el de por defecto
+            // Solo conectar si hay configuración válida
+            if (this.config.sheetId && this.config.apiKey) {
+                await this.connectToGoogleSheets();
+                // loadBaseData y loadAvailableScenarios se ejecutan dentro de connectToGoogleSheets cuando la conexión es exitosa
+            }
         } catch (error) {
             console.error("Error crítico en la inicialización:", error);
             this.updateConnectionStatus('Error al iniciar la aplicación', false);
@@ -240,14 +242,14 @@ class GestorSuroDashboard {
      */
     loadConfig() {
         // Primero intenta cargar desde config.js global
-        if (typeof CONFIG !== 'undefined' && CONFIG.SHEET_ID && CONFIG.API_KEY) {
+        if (typeof CONFIG !== 'undefined' && CONFIG.SHEET_ID && CONFIG.API_KEY && 
+            CONFIG.API_KEY !== 'TU_NUEVA_GOOGLE_API_KEY_AQUI' &&
+            CONFIG.API_KEY !== 'TU_GOOGLE_API_KEY_AQUI') {
             this.config = {
                 sheetId: CONFIG.SHEET_ID,
                 apiKey: CONFIG.API_KEY,
                 range: CONFIG.SHEET_RANGE || 'A:Z'
             };
-            // Conecta automáticamente si la configuración está completa
-            this.connectToGoogleSheets();
             return;
         }
         
@@ -255,9 +257,6 @@ class GestorSuroDashboard {
         const savedConfig = localStorage.getItem('gestorSuroConfig');
         if (savedConfig) {
             this.config = JSON.parse(savedConfig);
-            if (this.config.sheetId && this.config.apiKey) {
-                this.connectToGoogleSheets();
-            }
         }
         
 
@@ -322,6 +321,17 @@ class GestorSuroDashboard {
                 discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
             });
 
+            // Esperar un momento para asegurar que la API esté completamente inicializada
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Verificar que gapi.client.sheets esté disponible
+            if (!gapi.client.sheets) {
+                throw new Error('Google Sheets API no se inicializó correctamente');
+            }
+
+            // Cargar datos de referencia base primero
+            await this.loadBaseData();
+            
             // Cargar datos de la hoja
             await this.loadSheetData();
             
@@ -603,6 +613,11 @@ class GestorSuroDashboard {
         this.showLoading(true);
         this.updateConnectionStatus('Cargando datos de referencia...');
         try {
+            // Verificar que gapi.client esté inicializado
+            if (!gapi || !gapi.client || !gapi.client.sheets) {
+                throw new Error('Google API client no está inicializado');
+            }
+            
             const baseRange = 'Base!A:Z'; // Asume que la pestaña se llama 'Base'
             const response = await gapi.client.sheets.spreadsheets.values.get({
                 spreadsheetId: this.config.sheetId,
