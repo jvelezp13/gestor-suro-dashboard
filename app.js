@@ -3052,7 +3052,30 @@ class GestorSuroDashboard {
         let visibleSharedCount = 0;
         
         Object.values(locationData).forEach(location => {
-            const { lat, lng, ciudad, nexoClients, directaClients, totalClients, totalSales, populationType } = location;
+            const { lat, lng, ciudad, nexoClients, directaClients, totalClients, totalSales } = location;
+            
+            // Determinar el tipo de población (igual que en loadMapData)
+            const hasNexo = nexoClients.length > 0;
+            const hasDirecta = directaClients.length > 0;
+            
+            let populationType, markerColor, clusterGroup;
+            
+            if (hasNexo && hasDirecta) {
+                // Población compartida
+                populationType = 'compartida';
+                markerColor = '#f39c12'; // Naranja para compartidas
+                clusterGroup = this.nexoClusterGroup;
+            } else if (hasNexo) {
+                // Exclusivamente Nexo
+                populationType = 'exclusiva-nexo';
+                markerColor = '#27ae60'; // Verde para Nexo exclusivo
+                clusterGroup = this.nexoClusterGroup;
+            } else {
+                // Exclusivamente Directa
+                populationType = 'exclusiva-directa';
+                markerColor = '#e74c3c'; // Rojo para Directa exclusiva
+                clusterGroup = this.directaClusterGroup;
+            }
             
             // Aplicar filtros
             const passesTypeFilter = this.locationPassesTypeFilter(populationType);
@@ -3062,19 +3085,12 @@ class GestorSuroDashboard {
             if (passesTypeFilter && passesSalesFilter && passesClientsFilter) {
                 if (lat && lng && !isNaN(lat) && !isNaN(lng) && this.validateColombianCoordinates(lat, lng)) {
                     
-                    let markerColor, clusterGroup;
-                    
+                    // Contar por tipo
                     if (populationType === 'compartida') {
-                        markerColor = '#f39c12';
-                        clusterGroup = this.nexoClusterGroup;
                         visibleSharedCount++;
                     } else if (populationType === 'exclusiva-nexo') {
-                        markerColor = '#27ae60';
-                        clusterGroup = this.nexoClusterGroup;
                         visibleNexoCount++;
                     } else {
-                        markerColor = '#e74c3c';
-                        clusterGroup = this.directaClusterGroup;
                         visibleDirectaCount++;
                     }
                     
@@ -3116,6 +3132,8 @@ class GestorSuroDashboard {
                         dashArray: markerDashArray
                     });
                     
+                    // Asignar propiedades necesarias para popups e indicadores de cambio
+                    location.populationType = populationType;
                     location.avgSales = avgSales;
                     const popupContent = this.createPopupContent(location);
                     marker.bindPopup(popupContent);
