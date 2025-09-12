@@ -15,7 +15,8 @@ const CONFIG = {
     
     // Tu API Key de Google Cloud Console
     // Asegúrate de que tenga permisos para Google Sheets API
-    API_KEY: 'AIzaSyABC4roT1lVCmcm02V5GlOg-VzbC64VQjI',
+    // NUNCA pongas tu API key real aquí - usa variables de entorno
+    API_KEY: 'TU_GOOGLE_API_KEY_AQUI',
     
     // Rango de datos en la hoja (formato A1)
     // Configurado para leer todas las columnas con datos de clientes
