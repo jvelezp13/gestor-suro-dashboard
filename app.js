@@ -565,6 +565,11 @@ class GestorSuroDashboard {
             // Actualizar tabla de clientes para mostrar cambios de atención
             this.updateDashboard();
             
+            // Actualizar mapa con nuevos datos del escenario
+            if (this.map) {
+                this.loadMapData();
+            }
+            
             // Actualizar indicador visual
             this.updateScenarioIndicator(selectedScenario);
             
