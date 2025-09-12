@@ -1,16 +1,145 @@
-# Dashboard Gestor Suro - Análisis de Migración
+# 📊 Gestor Suro Dashboard
 
-Dashboard interactivo para analizar posibles escenarios de migración de clientes entre Nutresa (Atención Directa) y Nexo (Atención Indirecta), conectado automáticamente a Google Sheets.
+> Dashboard de análisis de migración de clientes Nutresa vs Nexo con conexión en tiempo real a Google Sheets
 
-## 🚀 Características Principales
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/jvelezp13/gestor-suro-dashboard)
 
-- **Conexión en tiempo real** con Google Sheets
-- **Visualizaciones interactivas** con Chart.js
-- **Filtros dinámicos** por tipo de cliente, región y período
-- **Métricas clave** para análisis de migración
-- **Tabla de datos** con búsqueda y exportación
-- **Diseño responsivo** para todos los dispositivos
-- **Actualización automática** de datos
+## 🚀 Demo en Vivo
+
+**URL del Proyecto**: [https://github.com/jvelezp13/gestor-suro-dashboard](https://github.com/jvelezp13/gestor-suro-dashboard)
+
+## ✨ Características
+
+- 📈 **Visualizaciones Interactivas** con Chart.js
+- 🗺️ **Mapas Geográficos** con Leaflet.js
+- 📊 **Análisis Financiero** en tiempo real
+- 🔄 **Conexión Google Sheets** automática
+- 📱 **Diseño Responsive** para todos los dispositivos
+- 🎯 **Análisis de Migración** Nutresa vs Nexo
+- 📋 **Filtros Avanzados** y búsqueda
+- 💰 **Cálculos Financieros** automáticos
+
+## 🛠️ Tecnologías
+
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Visualizaciones**: Chart.js, Leaflet.js
+- **APIs**: Google Sheets API
+- **Despliegue**: Vercel
+- **Control de Versiones**: Git + GitHub
+
+## 📦 Instalación Local
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/jvelezp13/gestor-suro-dashboard.git
+cd gestor-suro-dashboard
+
+# Servir archivos localmente
+python3 -m http.server 8000
+# o con Node.js
+npx serve .
+```
+
+## ⚙️ Configuración
+
+1. **Copia el archivo de configuración**:
+   ```bash
+   cp config.example.js config.js
+   ```
+
+2. **Edita `config.js` con tus credenciales**:
+   ```javascript
+   const CONFIG = {
+       SHEET_ID: 'tu-sheet-id-aqui',
+       API_KEY: 'tu-api-key-aqui',
+       // ... más configuraciones
+   };
+   ```
+
+3. **Configura Google Sheets API**:
+   - Ve a [Google Cloud Console](https://console.cloud.google.com/)
+   - Habilita Google Sheets API
+   - Crea una API Key
+   - Configura las restricciones necesarias
+
+## 🚀 Despliegue en Vercel
+
+### Opción 1: Deploy Automático
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/jvelezp13/gestor-suro-dashboard)
+
+### Opción 2: Deploy Manual
+```bash
+# Instalar Vercel CLI
+npm i -g vercel
+
+# Deploy desde el directorio del proyecto
+vercel
+```
+
+### Variables de Entorno en Vercel
+Configura estas variables en tu dashboard de Vercel:
+- `GOOGLE_SHEETS_API_KEY`
+- `GOOGLE_SHEET_ID`
+
+## 📊 Uso
+
+1. **Conectar con Google Sheets**
+   - Haz clic en "Conectar" en el header
+   - Verifica que los datos se carguen correctamente
+
+2. **Explorar Datos**
+   - **Dashboard**: Vista general con métricas clave
+   - **Tabla**: Datos detallados con filtros
+   - **Población**: Análisis por ubicación geográfica
+   - **Financiero**: Cálculos y proyecciones
+   - **Mapa**: Visualización geográfica
+
+3. **Filtros Disponibles**
+   - Por tipo de atención (Nutresa/Nexo)
+   - Por región geográfica
+   - Por rango de ventas
+   - Búsqueda por nombre de cliente
+
+## 📁 Estructura del Proyecto
+
+```
+gestor-suro-dashboard/
+├── index.html          # Página principal
+├── app.js             # Lógica de la aplicación
+├── styles.css         # Estilos CSS
+├── config.js          # Configuración (no incluido en repo)
+├── config.example.js  # Ejemplo de configuración
+├── vercel.json        # Configuración de Vercel
+├── .gitignore         # Archivos ignorados por Git
+└── README.md          # Este archivo
+```
+
+## 🔒 Seguridad
+
+- ✅ API Keys protegidas con `.gitignore`
+- ✅ Headers de seguridad configurados
+- ✅ Validación de datos de entrada
+- ✅ Configuración de CORS apropiada
+
+## 🤝 Contribuir
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📝 Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
+
+## 👨‍💻 Autor
+
+**Julian Velez** - [@jvelezp13](https://github.com/jvelezp13)
+
+---
+
+⭐ ¡No olvides dar una estrella al proyecto si te fue útil!
 
 ## 📋 Requisitos Previos
 
