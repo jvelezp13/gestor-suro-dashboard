@@ -54,6 +54,15 @@ class GestorSuroDashboard {
             'directa-recursos': []
         };
         
+        // Filtros del mapa
+        this.mapFilters = {
+            showNexo: true,
+            showDirecta: true,
+            showCompartida: true,
+            minSales: 0,
+            minClients: 1
+        };
+        
         this.init();
     }
 
@@ -198,6 +207,9 @@ class GestorSuroDashboard {
                 this.loadSelectedScenario();
             });
         }
+
+        // Filtros del mapa
+        this.setupMapFilters();
     }
 
     /**
@@ -2668,14 +2680,32 @@ class GestorSuroDashboard {
                 // Aplicar escala cuadrática para mayor diferenciación
                 const salesRadius = baseRadius + (maxRadius - baseRadius) * Math.pow(normalizedSales, 0.6);
 
+                // Detectar cambios respecto al escenario base
+                const changeInfo = this.detectLocationChanges(location);
+                location.changeInfo = changeInfo;
+                
+                // Configurar estilo del marcador incluyendo indicadores de cambio
+                let markerWeight = 2;
+                let markerDashArray = null;
+                
+                if (changeInfo.hasChanges) {
+                    markerWeight = 4; // Borde más grueso para indicar cambio
+                    if (changeInfo.changeType === 'new') {
+                        markerDashArray = '10,5'; // Línea punteada para nuevas ubicaciones
+                    } else {
+                        markerDashArray = '5,5'; // Línea intermitente para otros cambios
+                    }
+                }
+
                 // Crear marcador personalizado
                 const marker = L.circleMarker([lat, lng], {
                     radius: salesRadius,
                     fillColor: markerColor,
-                    color: '#fff',
-                    weight: 2,
+                    color: changeInfo.hasChanges ? '#FFD700' : '#fff', // Dorado para cambios
+                    weight: markerWeight,
                     opacity: 1,
-                    fillOpacity: 0.8
+                    fillOpacity: 0.8,
+                    dashArray: markerDashArray
                 });
 
                 // Agregar información del tipo de población al location
@@ -2912,6 +2942,13 @@ class GestorSuroDashboard {
                         <span class="popup-value">${Math.round((nexoClients.length/totalClients)*100)}% Nexo / ${Math.round((directaClients.length/totalClients)*100)}% Directa</span>
                     </div>
                     ` : ''}
+                    ${location.changeInfo && location.changeInfo.hasChanges ? `
+                    <div class="popup-divider"></div>
+                    <div class="popup-row">
+                        <span class="popup-label">📍 Cambio vs Base:</span>
+                        <span class="popup-change ${location.changeInfo.changeType}">${location.changeInfo.details}</span>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -2938,6 +2975,277 @@ class GestorSuroDashboard {
             document.getElementById('nexo-locations').textContent = arguments[1];
             document.getElementById('directa-locations').textContent = arguments[2];
         }
+    }
+
+    /**
+     * Configura los event listeners para los filtros del mapa
+     */
+    setupMapFilters() {
+        // Filtros de tipo de población
+        const filterNexo = document.getElementById('filter-nexo');
+        const filterDirecta = document.getElementById('filter-directa');
+        const filterCompartida = document.getElementById('filter-compartida');
+        
+        if (filterNexo) {
+            filterNexo.addEventListener('change', (e) => {
+                this.mapFilters.showNexo = e.target.checked;
+                this.applyMapFilters();
+            });
+        }
+        
+        if (filterDirecta) {
+            filterDirecta.addEventListener('change', (e) => {
+                this.mapFilters.showDirecta = e.target.checked;
+                this.applyMapFilters();
+            });
+        }
+        
+        if (filterCompartida) {
+            filterCompartida.addEventListener('change', (e) => {
+                this.mapFilters.showCompartida = e.target.checked;
+                this.applyMapFilters();
+            });
+        }
+        
+        // Filtro de ventas mínimas
+        const ventasRange = document.getElementById('ventas-range');
+        const ventasValue = document.getElementById('ventas-value');
+        
+        if (ventasRange && ventasValue) {
+            ventasRange.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                this.mapFilters.minSales = value;
+                ventasValue.textContent = this.formatCurrency(value);
+                this.applyMapFilters();
+            });
+        }
+        
+        // Filtro de clientes mínimos
+        const clientesRange = document.getElementById('clientes-range');
+        const clientesValue = document.getElementById('clientes-value');
+        
+        if (clientesRange && clientesValue) {
+            clientesRange.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                this.mapFilters.minClients = value;
+                clientesValue.textContent = value;
+                this.applyMapFilters();
+            });
+        }
+    }
+
+    /**
+     * Aplica los filtros seleccionados al mapa
+     */
+    applyMapFilters() {
+        if (!this.map || !this.rawData) return;
+        
+        // Limpiar marcadores existentes
+        this.nexoClusterGroup.clearLayers();
+        this.directaClusterGroup.clearLayers();
+        
+        // Reagrupar datos con filtros aplicados
+        const locationData = this.groupDataByProximity();
+        
+        let visibleNexoCount = 0;
+        let visibleDirectaCount = 0;
+        let visibleSharedCount = 0;
+        
+        Object.values(locationData).forEach(location => {
+            const { lat, lng, ciudad, nexoClients, directaClients, totalClients, totalSales, populationType } = location;
+            
+            // Aplicar filtros
+            const passesTypeFilter = this.locationPassesTypeFilter(populationType);
+            const passesSalesFilter = totalSales >= this.mapFilters.minSales;
+            const passesClientsFilter = totalClients >= this.mapFilters.minClients;
+            
+            if (passesTypeFilter && passesSalesFilter && passesClientsFilter) {
+                if (lat && lng && !isNaN(lat) && !isNaN(lng) && this.validateColombianCoordinates(lat, lng)) {
+                    
+                    let markerColor, clusterGroup;
+                    
+                    if (populationType === 'compartida') {
+                        markerColor = '#f39c12';
+                        clusterGroup = this.nexoClusterGroup;
+                        visibleSharedCount++;
+                    } else if (populationType === 'exclusiva-nexo') {
+                        markerColor = '#27ae60';
+                        clusterGroup = this.nexoClusterGroup;
+                        visibleNexoCount++;
+                    } else {
+                        markerColor = '#e74c3c';
+                        clusterGroup = this.directaClusterGroup;
+                        visibleDirectaCount++;
+                    }
+                    
+                    // Crear marcador con el mismo código que en loadMapData
+                    const avgSales = totalSales / totalClients;
+                    const baseRadius = 6;
+                    const maxRadius = 35;
+                    const minTotalSales = 100000;
+                    const maxTotalSales = 10000000;
+                    const normalizedSales = Math.max(0, Math.min(1, (totalSales - minTotalSales) / (maxTotalSales - minTotalSales)));
+                    const salesRadius = baseRadius + (maxRadius - baseRadius) * Math.pow(normalizedSales, 0.6);
+                    
+                    // Detectar cambios respecto al escenario base (si no está ya detectado)
+                    if (!location.changeInfo) {
+                        const changeInfo = this.detectLocationChanges(location);
+                        location.changeInfo = changeInfo;
+                    }
+                    
+                    // Configurar estilo del marcador incluyendo indicadores de cambio
+                    let markerWeight = 2;
+                    let markerDashArray = null;
+                    
+                    if (location.changeInfo && location.changeInfo.hasChanges) {
+                        markerWeight = 4; // Borde más grueso para indicar cambio
+                        if (location.changeInfo.changeType === 'new') {
+                            markerDashArray = '10,5'; // Línea punteada para nuevas ubicaciones
+                        } else {
+                            markerDashArray = '5,5'; // Línea intermitente para otros cambios
+                        }
+                    }
+                    
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: salesRadius,
+                        fillColor: markerColor,
+                        color: (location.changeInfo && location.changeInfo.hasChanges) ? '#FFD700' : '#fff', // Dorado para cambios
+                        weight: markerWeight,
+                        opacity: 1,
+                        fillOpacity: 0.8,
+                        dashArray: markerDashArray
+                    });
+                    
+                    location.avgSales = avgSales;
+                    const popupContent = this.createPopupContent(location);
+                    marker.bindPopup(popupContent);
+                    
+                    clusterGroup.addLayer(marker);
+                }
+            }
+        });
+        
+        // Actualizar estadísticas con datos filtrados
+        this.updateMapStats({
+            total: visibleNexoCount + visibleDirectaCount + visibleSharedCount,
+            exclusiveNexo: visibleNexoCount,
+            exclusiveDirecta: visibleDirectaCount,
+            shared: visibleSharedCount
+        });
+    }
+
+    /**
+     * Verifica si una ubicación pasa el filtro de tipo
+     */
+    locationPassesTypeFilter(populationType) {
+        switch(populationType) {
+            case 'exclusiva-nexo':
+                return this.mapFilters.showNexo;
+            case 'exclusiva-directa':
+                return this.mapFilters.showDirecta;
+            case 'compartida':
+                return this.mapFilters.showCompartida;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Formatea una cantidad como moneda
+     */
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    }
+
+    /**
+     * Detecta cambios en una ubicación comparando con el escenario base
+     */
+    detectLocationChanges(location) {
+        if (!this.baseScenarioData || this.scenarios.current === 'Base') {
+            return { hasChanges: false, changeType: null, details: null };
+        }
+
+        const { ciudad, nexoClients, directaClients } = location;
+        
+        // Buscar la misma ciudad en el escenario base
+        const baseLocationClients = this.baseScenarioData.filter(client => 
+            (client['Concatenado Ciudad'] || client['Ciudad'] || '') === ciudad
+        );
+        
+        if (baseLocationClients.length === 0) {
+            // Nueva ubicación
+            return { 
+                hasChanges: true, 
+                changeType: 'new', 
+                details: 'Nueva ubicación en este escenario' 
+            };
+        }
+
+        // Analizar tipos de atención en escenario base
+        const baseNexoClients = baseLocationClients.filter(client => client['Atencion'] === 'Nexo');
+        const baseDirectaClients = baseLocationClients.filter(client => client['Atencion'] === 'Directa');
+        
+        // Determinar tipo de población en escenario base
+        const baseHasNexo = baseNexoClients.length > 0;
+        const baseHasDirecta = baseDirectaClients.length > 0;
+        let basePopulationType;
+        
+        if (baseHasNexo && baseHasDirecta) {
+            basePopulationType = 'compartida';
+        } else if (baseHasNexo) {
+            basePopulationType = 'exclusiva-nexo';
+        } else {
+            basePopulationType = 'exclusiva-directa';
+        }
+
+        // Determinar tipo actual
+        const currentHasNexo = nexoClients.length > 0;
+        const currentHasDirecta = directaClients.length > 0;
+        let currentPopulationType;
+        
+        if (currentHasNexo && currentHasDirecta) {
+            currentPopulationType = 'compartida';
+        } else if (currentHasNexo) {
+            currentPopulationType = 'exclusiva-nexo';
+        } else {
+            currentPopulationType = 'exclusiva-directa';
+        }
+
+        // Detectar cambio de tipo
+        if (basePopulationType !== currentPopulationType) {
+            const changeMap = {
+                'exclusiva-nexo': 'Nexo',
+                'exclusiva-directa': 'Directa', 
+                'compartida': 'Compartida'
+            };
+            
+            return {
+                hasChanges: true,
+                changeType: 'population-type',
+                details: `Cambió de ${changeMap[basePopulationType]} a ${changeMap[currentPopulationType]}`
+            };
+        }
+
+        // Detectar cambios significativos en número de clientes
+        const baseTotal = baseLocationClients.length;
+        const currentTotal = nexoClients.length + directaClients.length;
+        const changePercent = Math.abs(currentTotal - baseTotal) / baseTotal;
+        
+        if (changePercent > 0.2) { // Más del 20% de cambio
+            const direction = currentTotal > baseTotal ? 'aumentó' : 'disminuyó';
+            return {
+                hasChanges: true,
+                changeType: 'client-count',
+                details: `Número de clientes ${direction} de ${baseTotal} a ${currentTotal}`
+            };
+        }
+
+        return { hasChanges: false, changeType: null, details: null };
     }
 }
 

@@ -1745,7 +1745,9 @@ body {
     gap: 8px;
 }
 
-.map-legend h4 {
+.map-legend h4,
+.map-filters h4,
+.map-stats h4 {
     margin: 0 0 8px 0;
     color: var(--text-primary);
     font-size: 1rem;
@@ -1781,6 +1783,76 @@ body {
 
 .legend-marker.compartida {
     background-color: #f39c12;
+}
+
+/* Estilos para filtros del mapa */
+.map-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-group label {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 2px 0;
+    transition: var(--transition);
+}
+
+.checkbox-item:hover {
+    color: var(--text-primary);
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.range-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.range-container input[type="range"] {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+    border-radius: 2px;
+    accent-color: var(--primary-color);
+}
+
+.range-container span {
+    min-width: 60px;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 .legend-note {
@@ -1884,6 +1956,35 @@ body {
 .popup-value {
     font-weight: bold;
     color: var(--text-primary);
+}
+
+/* Estilos para indicadores de cambio en popups */
+.popup-divider {
+    border-top: 1px solid rgba(255,255,255,0.2);
+    margin: 8px 0 4px 0;
+}
+
+.popup-change {
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.popup-change.new {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.popup-change.population-type {
+    background-color: #f39c12;
+    color: white;
+}
+
+.popup-change.client-count {
+    background-color: #3498db;
+    color: white;
 }
 
 .popup-tension {
