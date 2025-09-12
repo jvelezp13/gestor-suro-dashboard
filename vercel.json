@@ -1,22 +1,4 @@
 {
-  "routes": [
-    {
-      "src": "/config.js",
-      "dest": "/config.js"
-    },
-    {
-      "src": "/app.js", 
-      "dest": "/app.js"
-    },
-    {
-      "src": "/styles.css",
-      "dest": "/styles.css"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
