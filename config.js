@@ -9,11 +9,11 @@
 const CONFIG = {
     // ID de tu hoja de cálculo de Google Sheets
     // Lo encuentras en la URL: https://docs.google.com/spreadsheets/d/[SHEET_ID]/edit
-    SHEET_ID: process.env.GOOGLE_SHEET_ID || '1QCjfTgxQOgs5dXUniafhJyLfHOHa4Zj4s8D7MEbyaMk',
+    SHEET_ID: '1QCjfTgxQOgs5dXUniafhJyLfHOHa4Zj4s8D7MEbyaMk',
     
     // Tu API Key de Google Cloud Console
     // Asegúrate de que tenga permisos para Google Sheets API
-    API_KEY: process.env.GOOGLE_API_KEY || '',
+    API_KEY: 'AIzaSyDF1vWoFtewHVYRxkIN1-f523TaxHAK6kc',
     
     // Rango de datos en la hoja (formato A1)
     // Configurado para leer todas las columnas con datos de clientes
