@@ -1523,7 +1523,8 @@ body {
 /* Estilos para Modal de Configuración de Categorías */
 
 
-/* Estilos para etiquetas de categorías */
+/* Estilos para etiquetas de categorías - DESHABILITADOS - Ahora se usan estilos inline */
+/*
 .category-tag {
     display: inline-block;
     padding: 4px 8px;
@@ -1562,6 +1563,7 @@ body {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
 }
+*/
 
 /* Estilos para la Pestaña Población */
 .poblacion-summary-section {

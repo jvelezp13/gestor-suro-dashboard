@@ -1371,7 +1371,35 @@ class GestorSuroDashboard {
                 if (column === 'Categoria' || column === 'Categoría') {
                     const tag = document.createElement('span');
                     tag.textContent = value;
-                    tag.className = `category-tag ${value.toLowerCase()}`;
+                    tag.style.padding = '4px 8px';
+                    tag.style.borderRadius = '12px';
+                    tag.style.fontSize = '11px';
+                    tag.style.fontWeight = '500';
+                    tag.style.display = 'inline-block';
+                    
+                    // Colores manteniendo la paleta actual pero simplificados
+                    if (value === 'Top') {
+                        tag.style.backgroundColor = '#ffebee';
+                        tag.style.color = '#c62828';
+                        tag.style.border = '1px solid #ffcdd2';
+                    } else if (value === 'Grande') {
+                        tag.style.backgroundColor = '#e8eaf6';
+                        tag.style.color = '#3f51b5';
+                        tag.style.border = '1px solid #c5cae9';
+                    } else if (value === 'Mediano') {
+                        tag.style.backgroundColor = '#e0f2f1';
+                        tag.style.color = '#00695c';
+                        tag.style.border = '1px solid #b2dfdb';
+                    } else if (value === 'Pequeño') {
+                        tag.style.backgroundColor = '#fff3e0';
+                        tag.style.color = '#ef6c00';
+                        tag.style.border = '1px solid #ffcc80';
+                    } else {
+                        tag.style.backgroundColor = '#f5f5f5';
+                        tag.style.color = '#666';
+                        tag.style.border = '1px solid #ddd';
+                    }
+                    
                     td.appendChild(tag);
                 } 
                 // Formato especial para la columna Cambio de Atención
@@ -1899,9 +1927,6 @@ class GestorSuroDashboard {
         
         // Renderizar tabla
         this.renderPoblacionTable();
-        
-        // Configurar event listeners para ordenamiento
-        this.setupPoblacionSorting();
     }
     
     /**
@@ -1965,6 +1990,12 @@ class GestorSuroDashboard {
             
             tbody.appendChild(row);
          });
+         
+         // Configurar event listeners para ordenamiento cada vez que se renderiza
+         this.setupPoblacionSorting();
+         
+         // Actualizar indicadores de ordenamiento
+         this.updatePoblacionSortIndicators();
      }
 
     /**
@@ -2154,8 +2185,13 @@ class GestorSuroDashboard {
          const headers = document.querySelectorAll('#poblacionTable th.sortable');
          
          headers.forEach(header => {
-             header.addEventListener('click', () => {
-                 const column = header.dataset.column;
+             // Remover listeners existentes clonando el elemento (más eficiente que removeEventListener)
+             const newHeader = header.cloneNode(true);
+             header.parentNode.replaceChild(newHeader, header);
+             
+             // Agregar el nuevo event listener
+             newHeader.addEventListener('click', () => {
+                 const column = newHeader.dataset.column;
                  this.sortPoblacionTable(column);
              });
          });
@@ -2178,10 +2214,7 @@ class GestorSuroDashboard {
              this.poblacionSortConfig.direction = 'desc';
          }
          
-         // Actualizar indicadores visuales
-         this.updatePoblacionSortIndicators();
-         
-         // Re-renderizar tabla
+         // Re-renderizar tabla (incluye configurar listeners y actualizar indicadores)
          this.renderPoblacionTable();
      }
      
@@ -2194,8 +2227,22 @@ class GestorSuroDashboard {
          headers.forEach(header => {
              header.classList.remove('sort-asc', 'sort-desc');
              
-             if (header.dataset.column === this.poblacionSortConfig.column) {
+             const sortIndicator = header.querySelector('.sort-indicator');
+             const column = header.dataset.column;
+             
+             if (!sortIndicator) return;
+             
+             // Aplicar el mismo sistema que la tabla de clientes
+             sortIndicator.style.marginLeft = '5px';
+             sortIndicator.style.fontSize = '10px';
+             
+             if (this.poblacionSortConfig && this.poblacionSortConfig.column === column) {
+                 sortIndicator.textContent = this.poblacionSortConfig.direction === 'asc' ? '▲' : '▼';
+                 sortIndicator.style.color = 'var(--light-color)';
                  header.classList.add(`sort-${this.poblacionSortConfig.direction}`);
+             } else {
+                 sortIndicator.textContent = '▲▼';
+                 sortIndicator.style.color = 'rgba(255, 255, 255, 0.5)';
              }
          });
      }
