@@ -316,47 +316,105 @@ class GestorSuroDashboard {
         this.showLoading(true);
         this.updateConnectionStatus('Conectando...');
 
+        // Sistema de debugging detallado
+        const debugLog = (step, message, data = null) => {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`🔍 [${timestamp}] Paso ${step}: ${message}`, data || '');
+            this.updateConnectionStatus(`Paso ${step}: ${message}`);
+        };
+
         try {
-            // Inicializar Google API
+            debugLog(1, 'Iniciando conexión a Google Sheets API...');
+
+            // Test de conectividad básica a Google
+            try {
+                debugLog(1.1, 'Probando conectividad a googleapis.com...');
+                const testResponse = await fetch('https://www.googleapis.com/', {
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                debugLog(1.2, '✅ Conectividad a Google APIs: OK');
+            } catch (testError) {
+                debugLog(1.2, '❌ FALLO: Sin conectividad a Google APIs', testError.message);
+                throw new Error(`Red corporativa bloquea Google APIs: ${testError.message}`);
+            }
+
+            debugLog(2, 'Cargando Google API Client Library...');
+            // Inicializar Google API con timeout
             await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    debugLog(2.1, '❌ TIMEOUT: Google API Client no responde (30s)');
+                    reject(new Error('Timeout cargando gapi.client - posible bloqueo de red corporativa'));
+                }, 30000);
+
                 gapi.load('client', {
-                    callback: resolve,
-                    onerror: reject
+                    callback: () => {
+                        clearTimeout(timeout);
+                        debugLog(2.1, '✅ Google API Client cargado exitosamente');
+                        resolve();
+                    },
+                    onerror: (error) => {
+                        clearTimeout(timeout);
+                        debugLog(2.1, '❌ FALLO cargando Google API Client', error);
+                        reject(new Error(`Error cargando gapi.client: ${error}`));
+                    }
                 });
             });
 
+            debugLog(3, 'Inicializando cliente Google Sheets...');
             await gapi.client.init({
                 apiKey: this.config.apiKey,
                 discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
             });
 
+            debugLog(3.1, '✅ Cliente Google Sheets inicializado');
             // Esperar un momento para asegurar que la API esté completamente inicializada
             await new Promise(resolve => setTimeout(resolve, 500));
-            
+
             // Verificar que gapi.client.sheets esté disponible
             if (!gapi.client.sheets) {
+                debugLog(3.2, '❌ FALLO: Google Sheets API no disponible');
                 throw new Error('Google Sheets API no se inicializó correctamente');
             }
+            debugLog(3.2, '✅ Google Sheets API verificado y listo');
 
-            // Cargar datos de referencia base primero
+            debugLog(4, 'Cargando datos de referencia base...');
             await this.loadBaseData();
-            
-            // Cargar datos de la hoja
+            debugLog(4.1, '✅ Datos base cargados');
+
+            debugLog(5, 'Cargando datos principales de la hoja...');
             await this.loadSheetData();
-            
-            // Cargar escenarios disponibles
+            debugLog(5.1, '✅ Datos principales cargados');
+
+            debugLog(6, 'Descubriendo escenarios disponibles...');
             await this.loadAvailableScenarios();
-            
-            // Cargar configuración financiera
+            debugLog(6.1, '✅ Escenarios descubiertos');
+
+            debugLog(7, 'Cargando configuración financiera...');
             await this.loadFinancialConfig();
-            
+            debugLog(7.1, '✅ Configuración financiera cargada');
+
             this.isConnected = true;
+            debugLog(8, '🎉 ¡CONEXIÓN EXITOSA! Dashboard listo para usar');
             this.updateConnectionStatus('Conectado', true);
-            
+
         } catch (error) {
-            console.error('Error conectando a Google Sheets:', error);
-            this.updateConnectionStatus('Error de conexión', false);
-            alert('Error al conectar con Google Sheets. Verifica tu configuración.');
+            const errorMessage = error.message || 'Error desconocido';
+            console.error('❌ ERROR FINAL:', error);
+
+            // Mensaje específico según el tipo de error
+            let userMessage = 'Error al conectar con Google Sheets.';
+            if (errorMessage.includes('Google APIs')) {
+                userMessage = '🚫 Red corporativa bloquea Google APIs. Contacta IT para permitir googleapis.com';
+            } else if (errorMessage.includes('Timeout')) {
+                userMessage = '⏱️ Conexión muy lenta. Posible proxy corporativo interfiriendo.';
+            } else if (errorMessage.includes('API')) {
+                userMessage = '🔑 Problema con API Key. Verifica restricciones en Google Cloud Console.';
+            }
+
+            this.updateConnectionStatus(`❌ ${userMessage}`, false);
+            alert(`${userMessage}\n\nError técnico: ${errorMessage}`);
         } finally {
             this.showLoading(false);
         }
