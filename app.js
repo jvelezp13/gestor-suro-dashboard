@@ -717,7 +717,13 @@ class GestorSuroDashboard {
         try {
             console.log('🔍 Cargando datos desde API:', this.scenarios.current);
 
-            const response = await apiService.getSheetData(this.config.range, this.scenarios.current);
+            // Extraer solo el rango sin el nombre de la hoja
+            let cleanRange = this.config.range;
+            if (cleanRange.includes('!')) {
+                cleanRange = cleanRange.split('!')[1]; // Tomar solo la parte después de '!'
+            }
+
+            const response = await apiService.getSheetData(cleanRange, this.scenarios.current);
 
             if (!response.success) {
                 throw new Error(response.error || 'Error cargando datos');
