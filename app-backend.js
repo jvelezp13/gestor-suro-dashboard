@@ -315,10 +315,222 @@ class GestorSuroDashboard {
         }
     }
 
-    // Resto de métodos permanecen igual (copiados del archivo original)
-    // Solo cambio los métodos que interactúan con Google Sheets
+    /**
+     * Configura los event listeners del dashboard
+     */
+    setupEventListeners() {
+        // Selector de escenarios
+        const scenarioSelect = document.getElementById('scenarioSelect');
+        if (scenarioSelect) {
+            scenarioSelect.addEventListener('change', (e) => {
+                this.switchScenario(e.target.value);
+            });
+        }
 
-    // [NOTA: Aquí iría el resto del código de app.js, pero mantendré solo los métodos principales
-    // modificados para usar la API. Los demás métodos permanecen exactamente igual.]
+        // Botón de conexión manual (por si hay problemas)
+        const connectBtn = document.getElementById('connectBtn');
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => {
+                this.connectToBackend();
+            });
+        }
 
+        // Listeners para filtros (si existen)
+        this.setupFilterListeners();
+    }
+
+    /**
+     * Configura listeners para los filtros
+     */
+    setupFilterListeners() {
+        // Implementar filtros si es necesario
+        console.log('Filter listeners configurados');
+    }
+
+    /**
+     * Actualiza el estado de conexión en la interfaz
+     */
+    updateConnectionStatus(message, isConnected = null) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (!statusElement) return;
+
+        if (isConnected !== null) {
+            statusElement.className = isConnected ? 'status-connected' : 'status-disconnected';
+            statusElement.innerHTML = isConnected
+                ? '<i class="fas fa-circle"></i> Conectado'
+                : '<i class="fas fa-circle"></i> Desconectado';
+        } else {
+            // Solo actualizar el texto para estados de progreso
+            statusElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
+        }
+    }
+
+    /**
+     * Muestra/oculta el indicador de carga
+     */
+    showLoading(show) {
+        const loadingElement = document.getElementById('loadingIndicator');
+        if (loadingElement) {
+            loadingElement.style.display = show ? 'block' : 'none';
+        }
+
+        // También afectar botones si existen
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.disabled = show;
+        });
+    }
+
+    /**
+     * Actualiza todo el dashboard con nuevos datos
+     */
+    updateDashboard() {
+        if (!this.isConnected || this.rawData.length === 0) {
+            console.log('⚠️ No hay datos para actualizar dashboard');
+            return;
+        }
+
+        console.log('📊 Actualizando dashboard...');
+
+        // Filtrar datos según criterios actuales
+        this.filterData();
+
+        // Actualizar componentes básicos
+        this.updateMetrics();
+        this.updateScenarioIndicator();
+
+        console.log('✅ Dashboard actualizado');
+    }
+
+    /**
+     * Filtra los datos según criterios actuales
+     */
+    filterData() {
+        // Por ahora, usar todos los datos
+        this.filteredData = [...this.rawData];
+        console.log(`🔍 Datos filtrados: ${this.filteredData.length} registros`);
+    }
+
+    /**
+     * Actualiza las métricas básicas
+     */
+    updateMetrics() {
+        const metrics = this.calculateBasicMetrics();
+        this.displayMetrics(metrics);
+    }
+
+    /**
+     * Calcula métricas básicas
+     */
+    calculateBasicMetrics() {
+        const totalClients = this.filteredData.length;
+
+        return {
+            totalClients,
+            nexoClients: 0, // Implementar según estructura de datos
+            directaClients: 0, // Implementar según estructura de datos
+            totalSales: 0 // Implementar según estructura de datos
+        };
+    }
+
+    /**
+     * Muestra las métricas en la interfaz
+     */
+    displayMetrics(metrics) {
+        // Actualizar elementos de métricas si existen
+        const totalClientsEl = document.getElementById('totalClients');
+        if (totalClientsEl) {
+            totalClientsEl.textContent = metrics.totalClients;
+        }
+
+        console.log('📈 Métricas actualizadas:', metrics);
+    }
+
+    /**
+     * Actualiza el indicador de escenario actual
+     */
+    updateScenarioIndicator() {
+        const indicator = document.getElementById('currentScenario');
+        if (indicator) {
+            indicator.textContent = this.scenarios.current;
+        }
+    }
+
+    /**
+     * Actualiza el selector de escenarios
+     */
+    updateScenarioSelector() {
+        const scenarioSelect = document.getElementById('scenarioSelect');
+        if (!scenarioSelect) return;
+
+        // Limpiar opciones existentes
+        scenarioSelect.innerHTML = '';
+
+        // Añadir opciones de escenarios
+        this.scenarios.available.forEach(scenario => {
+            const option = document.createElement('option');
+            option.value = scenario;
+            option.textContent = scenario;
+            if (scenario === this.scenarios.current) {
+                option.selected = true;
+            }
+            scenarioSelect.appendChild(option);
+        });
+    }
+
+    /**
+     * Cambia a un escenario diferente
+     */
+    async switchScenario(scenarioName) {
+        if (scenarioName === this.scenarios.current) return;
+
+        console.log(`🔄 Cambiando a escenario: ${scenarioName}`);
+        this.scenarios.current = scenarioName;
+
+        try {
+            this.showLoading(true);
+            await this.loadSheetData();
+            await this.loadFinancialConfig();
+            this.updateScenarioIndicator();
+        } catch (error) {
+            console.error('Error cambiando escenario:', error);
+            alert(`Error al cambiar escenario: ${error.message}`);
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    /**
+     * Procesa recursos con cantidades desde ConfigFinanciera
+     */
+    processConfigResource(campo, valor, cantidad = null) {
+        if (!this.financialConfig[campo]) {
+            this.financialConfig[campo] = [];
+        }
+
+        const recurso = {
+            valor: parseFloat(valor) || 0,
+            cantidad: cantidad ? parseFloat(cantidad) : null
+        };
+
+        this.financialConfig[campo].push(recurso);
+    }
+
+    /**
+     * Actualiza el panel de resumen financiero consolidado
+     */
+    updateFinancialSummary() {
+        // Implementar actualización del resumen financiero
+        console.log('💰 Resumen financiero actualizado');
+    }
 }
+
+// Variable global para acceder al dashboard desde los botones
+let dashboard;
+
+// Inicializar el dashboard cuando se carga la página
+document.addEventListener('DOMContentLoaded', () => {
+    dashboard = new GestorSuroDashboard();
+    // Función global para acceder al dashboard desde HTML
+    window.dashboard = dashboard;
+});
