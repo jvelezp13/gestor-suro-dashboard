@@ -324,80 +324,46 @@ class GestorSuroDashboard {
         };
 
         try {
-            debugLog(1, 'Iniciando conexión a Google Sheets API...');
+            debugLog(1, 'Conectando a backend API...');
 
-            // Test de conectividad básica a Google
-            try {
-                debugLog(1.1, 'Probando conectividad a googleapis.com...');
-                const testResponse = await fetch('https://www.googleapis.com/', {
-                    method: 'HEAD',
-                    mode: 'no-cors',
-                    cache: 'no-cache'
-                });
-                debugLog(1.2, '✅ Conectividad a Google APIs: OK');
-            } catch (testError) {
-                debugLog(1.2, '❌ FALLO: Sin conectividad a Google APIs', testError.message);
-                throw new Error(`Red corporativa bloquea Google APIs: ${testError.message}`);
+            // Test de conectividad con el backend
+            debugLog(1.1, 'Probando conectividad con backend...');
+            const healthCheck = await apiService.testConnectivity();
+
+            if (!healthCheck.success) {
+                debugLog(1.2, '❌ FALLO: Backend no accesible', healthCheck.error);
+                throw new Error(`Backend no disponible: ${healthCheck.error}`);
             }
+            debugLog(1.2, `✅ Backend conectado (${healthCheck.duration}ms)`);
 
-            debugLog(2, 'Cargando Google API Client Library...');
-            // Inicializar Google API con timeout
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    debugLog(2.1, '❌ TIMEOUT: Google API Client no responde (30s)');
-                    reject(new Error('Timeout cargando gapi.client - posible bloqueo de red corporativa'));
-                }, 30000);
+            debugLog(2, 'Validando acceso a Google Sheets...');
+            const validation = await apiService.validateConnection();
 
-                gapi.load('client', {
-                    callback: () => {
-                        clearTimeout(timeout);
-                        debugLog(2.1, '✅ Google API Client cargado exitosamente');
-                        resolve();
-                    },
-                    onerror: (error) => {
-                        clearTimeout(timeout);
-                        debugLog(2.1, '❌ FALLO cargando Google API Client', error);
-                        reject(new Error(`Error cargando gapi.client: ${error}`));
-                    }
-                });
-            });
-
-            debugLog(3, 'Inicializando cliente Google Sheets...');
-            await gapi.client.init({
-                apiKey: this.config.apiKey,
-                discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
-            });
-
-            debugLog(3.1, '✅ Cliente Google Sheets inicializado');
-            // Esperar un momento para asegurar que la API esté completamente inicializada
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Verificar que gapi.client.sheets esté disponible
-            if (!gapi.client.sheets) {
-                debugLog(3.2, '❌ FALLO: Google Sheets API no disponible');
-                throw new Error('Google Sheets API no se inicializó correctamente');
+            if (!validation.success) {
+                debugLog(2.1, '❌ FALLO: Validación Google Sheets', validation.error);
+                throw new Error(`Google Sheets no accesible: ${validation.error}`);
             }
-            debugLog(3.2, '✅ Google Sheets API verificado y listo');
+            debugLog(2.1, `✅ Google Sheets validado: "${validation.title}"`);
 
-            debugLog(4, 'Cargando datos de referencia base...');
+            debugLog(3, 'Cargando datos de referencia base...');
             await this.loadBaseData();
-            debugLog(4.1, '✅ Datos base cargados');
+            debugLog(3.1, '✅ Datos base cargados');
 
-            debugLog(5, 'Cargando datos principales de la hoja...');
-            await this.loadSheetData();
-            debugLog(5.1, '✅ Datos principales cargados');
-
-            debugLog(6, 'Descubriendo escenarios disponibles...');
+            debugLog(4, 'Descubriendo escenarios disponibles...');
             await this.loadAvailableScenarios();
-            debugLog(6.1, '✅ Escenarios descubiertos');
+            debugLog(4.1, '✅ Escenarios descubiertos');
 
-            debugLog(7, 'Cargando configuración financiera...');
+            debugLog(5, 'Cargando configuración financiera...');
             await this.loadFinancialConfig();
-            debugLog(7.1, '✅ Configuración financiera cargada');
+            debugLog(5.1, '✅ Configuración financiera cargada');
+
+            debugLog(6, 'Cargando datos principales de la hoja...');
+            await this.loadSheetData();
+            debugLog(6.1, '✅ Datos principales cargados');
 
             this.isConnected = true;
-            debugLog(8, '🎉 ¡CONEXIÓN EXITOSA! Dashboard listo para usar');
-            this.updateConnectionStatus('Conectado', true);
+            debugLog(7, '🎉 ¡CONEXIÓN EXITOSA VIA BACKEND! Dashboard listo para usar');
+            this.updateConnectionStatus('Conectado via Backend API', true);
 
         } catch (error) {
             const errorMessage = error.message || 'Error desconocido';
@@ -706,18 +672,14 @@ class GestorSuroDashboard {
         this.showLoading(true);
         this.updateConnectionStatus('Cargando datos de referencia...');
         try {
-            // Verificar que gapi.client esté inicializado
-            if (!gapi || !gapi.client || !gapi.client.sheets) {
-                throw new Error('Google API client no está inicializado');
-            }
-            
-            const baseRange = 'Base!A:Z'; // Asume que la pestaña se llama 'Base'
-            const response = await gapi.client.sheets.spreadsheets.values.get({
-                spreadsheetId: this.config.sheetId,
-                range: baseRange
-            });
+            const response = await apiService.getSheetData('A:Z', 'Base');
 
-            const values = response.result.values;
+            if (!response.success) {
+                console.log('⚠️ No se pudieron cargar datos base para comparación');
+                return;
+            }
+
+            const values = response.data;
             if (!values || values.length === 0) {
                 throw new Error('No se encontraron datos en la hoja "Base"');
             }
