@@ -455,50 +455,38 @@ class GestorSuroDashboard {
         try {
             console.log('🔧 Cargando configuración financiera...');
 
-            const response = await apiService.getFinancialConfig(this.scenarios.current);
+            // Obtener TODOS los datos de ConfigFinanciera (no filtrados por escenario)
+            const response = await apiService.getSheetData('A:D', 'ConfigFinanciera');
 
-            if (response.success && response.config) {
-                // Resetear configuración
-                this.financialConfig = {
-                    'nexo-venta': 0,
-                    'directa-venta': 0,
-                    'nexo-costo': 0,
-                    'directa-costo': 0,
-                    'nexo-ICA': 0,
-                    'directa-ICA': 0,
-                    'nexo-recursos': [],
-                    'directa-recursos': []
-                };
-
-                // Procesar configuración del backend
-                Object.entries(response.config).forEach(([campo, data]) => {
-                    if (campo.includes('recursos')) {
-                        this.processConfigResource(campo, data.valor, data.cantidad);
-                    } else {
-                        this.financialConfig[campo] = data.valor;
-                    }
-                });
-
-                console.log('💰 Configuración financiera cargada:', this.financialConfig);
-                this.updateFinancialSummary();
-            } else {
+            if (!response.success || !response.data || response.data.length <= 1) {
                 console.log('⚠️ ConfigFinanciera no disponible, usando valores por defecto');
+                return;
             }
 
-            // Procesar los datos (asumiendo estructura: Escenario | Campo | Valor | Cantidad)
+            const values = response.data;
+
+            // Resetear configuración
+            this.financialConfig = {
+                'nexo-venta': 0,
+                'directa-venta': 0,
+                'nexo-costo': 0,
+                'directa-costo': 0,
+                'nexo-ICA': 0,
+                'directa-ICA': 0,
+                'nexo-recursos': [],
+                'directa-recursos': []
+            };
+
+            // Procesar los datos (estructura: Escenario | Campo | Valor | Cantidad)
             const configData = values.slice(1); // Saltar header
-            
-            // Reiniciar arrays de recursos para el nuevo escenario
-            this.financialConfig['nexo-recursos'] = [];
-            this.financialConfig['directa-recursos'] = [];
-            
+
             configData.forEach(row => {
                 if (row.length >= 3) {
                     const [escenario, campo, valor, cantidad] = row;
-                    
+
                     // Para el escenario "Todos" o que coincida con el actual
                     if (escenario === 'Todos' || escenario === this.scenarios.current) {
-                        
+
                         // Verificar si es un recurso
                         if (campo.includes('recurso:')) {
                             this.processConfigResource(campo, valor, cantidad);
@@ -511,7 +499,8 @@ class GestorSuroDashboard {
                 }
             });
 
-            console.log('✅ Configuración financiera cargada:', this.financialConfig);
+            console.log('💰 Configuración financiera cargada:', this.financialConfig);
+            this.updateFinancialSummary();
             
         } catch (error) {
             console.log('⚠️ Error cargando configuración financiera (pestaña no existe o sin datos):', error.message);
