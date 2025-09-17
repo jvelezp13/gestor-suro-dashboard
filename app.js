@@ -74,7 +74,7 @@ class GestorSuroDashboard {
             await this.loadConfig();
             // Solo conectar si hay configuración válida
             if (this.config.sheetId && this.config.apiKey) {
-                await this.connectToGoogleSheets();
+                await this.connectToBackend();
                 // loadBaseData y loadAvailableScenarios se ejecutan dentro de connectToGoogleSheets cuando la conexión es exitosa
             }
         } catch (error) {
@@ -93,7 +93,7 @@ class GestorSuroDashboard {
         document.getElementById('connectBtn').addEventListener('click', () => {
             // Si ya hay configuración válida, reconecta directamente
             if (this.config.sheetId && this.config.apiKey) {
-                this.connectToGoogleSheets();
+                this.connectToBackend();
             } else {
                 this.showConfigModal();
             }
@@ -306,13 +306,13 @@ class GestorSuroDashboard {
         localStorage.setItem('gestorSuroConfig', JSON.stringify(this.config));
         
         this.hideConfigModal();
-        await this.connectToGoogleSheets();
+        await this.connectToBackend();
     }
 
     /**
      * Se conecta a Google Sheets API y carga los datos
      */
-    async connectToGoogleSheets() {
+    async connectToBackend() {
         this.showLoading(true);
         this.updateConnectionStatus('Conectando...');
 
@@ -326,7 +326,7 @@ class GestorSuroDashboard {
         try {
             debugLog(1, 'Iniciando conexión a Google Sheets API...');
 
-            // Test de conectividad básica a Google - Si falla, usar backend automáticamente
+            // Test de conectividad básica a Google
             try {
                 debugLog(1.1, 'Probando conectividad a googleapis.com...');
                 const testResponse = await fetch('https://www.googleapis.com/', {
@@ -336,8 +336,8 @@ class GestorSuroDashboard {
                 });
                 debugLog(1.2, '✅ Conectividad a Google APIs: OK');
             } catch (testError) {
-                debugLog(1.2, '❌ Red empresarial detectada - Cambiando a backend API automáticamente');
-                return await this.connectToBackendFallback();
+                debugLog(1.2, '❌ FALLO: Sin conectividad a Google APIs', testError.message);
+                throw new Error(`Red corporativa bloquea Google APIs: ${testError.message}`);
             }
 
             debugLog(2, 'Cargando Google API Client Library...');
@@ -348,12 +348,6 @@ class GestorSuroDashboard {
                     reject(new Error('Timeout cargando gapi.client - posible bloqueo de red corporativa'));
                 }, 30000);
 
-                if (typeof gapi === 'undefined') {
-                    clearTimeout(timeout);
-                    debugLog(2.1, '❌ Google APIs bloqueado - Cambiando a backend automáticamente');
-                    return reject(new Error('BACKEND_FALLBACK'));
-                }
-
                 gapi.load('client', {
                     callback: () => {
                         clearTimeout(timeout);
@@ -362,8 +356,8 @@ class GestorSuroDashboard {
                     },
                     onerror: (error) => {
                         clearTimeout(timeout);
-                        debugLog(2.1, '❌ Error Google API Client - Cambiando a backend automáticamente');
-                        reject(new Error('BACKEND_FALLBACK'));
+                        debugLog(2.1, '❌ FALLO cargando Google API Client', error);
+                        reject(new Error(`Error cargando gapi.client: ${error}`));
                     }
                 });
             });
@@ -407,13 +401,6 @@ class GestorSuroDashboard {
 
         } catch (error) {
             const errorMessage = error.message || 'Error desconocido';
-
-            // Si el error indica que debe usar backend fallback
-            if (errorMessage.includes('BACKEND_FALLBACK') || errorMessage.includes('Timeout cargando gapi.client')) {
-                console.log('🔄 Cambiando automáticamente a backend API...');
-                return await this.connectToBackendFallback();
-            }
-
             console.error('❌ ERROR FINAL:', error);
 
             // Mensaje específico según el tipo de error
@@ -438,15 +425,17 @@ class GestorSuroDashboard {
      */
     async loadAvailableScenarios() {
         try {
-            const response = await gapi.client.sheets.spreadsheets.get({
-                spreadsheetId: this.config.sheetId
-            });
-            
-            const sheets = response.result.sheets;
+            const response = await apiService.getAvailableSheets();
+
+            if (!response.success) {
+                throw new Error(response.error || 'Error obteniendo escenarios');
+            }
+
+            const sheets = response.sheets;
             const availableSheets = sheets
-                .filter(sheet => !sheet.properties.hidden)
-                .map(sheet => sheet.properties.title)
-                .filter(sheetName => !sheetName.startsWith('Config'));
+                .filter(sheet => !sheet.hidden)
+                .filter(sheet => !sheet.title.startsWith('Config'))
+                .map(sheet => sheet.title);
             
             this.scenarios.available = availableSheets;
             
@@ -499,16 +488,35 @@ class GestorSuroDashboard {
     async loadFinancialConfig() {
         try {
             console.log('🔧 Cargando configuración financiera...');
-            
-            const response = await gapi.client.sheets.spreadsheets.values.get({
-                spreadsheetId: this.config.sheetId,
-                range: 'ConfigFinanciera!A:D'
-            });
 
-            const values = response.result.values;
-            if (!values || values.length <= 1) {
-                console.log('⚠️ No se encontraron datos de configuración financiera');
-                return;
+            const response = await apiService.getFinancialConfig(this.scenarios.current);
+
+            if (response.success && response.config) {
+                // Resetear configuración
+                this.financialConfig = {
+                    'nexo-venta': 0,
+                    'directa-venta': 0,
+                    'nexo-costo': 0,
+                    'directa-costo': 0,
+                    'nexo-ICA': 0,
+                    'directa-ICA': 0,
+                    'nexo-recursos': [],
+                    'directa-recursos': []
+                };
+
+                // Procesar configuración del backend
+                Object.entries(response.config).forEach(([campo, data]) => {
+                    if (campo.includes('recursos')) {
+                        this.processConfigResource(campo, data.valor, data.cantidad);
+                    } else {
+                        this.financialConfig[campo] = data.valor;
+                    }
+                });
+
+                console.log('💰 Configuración financiera cargada:', this.financialConfig);
+                this.updateFinancialSummary();
+            } else {
+                console.log('⚠️ ConfigFinanciera no disponible, usando valores por defecto');
             }
 
             // Procesar los datos (asumiendo estructura: Escenario | Campo | Valor | Cantidad)
@@ -745,26 +753,29 @@ class GestorSuroDashboard {
      */
     async loadSheetData() {
         try {
-            console.log('🔍 Cargando datos desde:', this.config.range);
-            const response = await gapi.client.sheets.spreadsheets.values.get({
-                spreadsheetId: this.config.sheetId,
-                range: this.config.range
-            });
+            console.log('🔍 Cargando datos desde API:', this.scenarios.current);
 
-            const values = response.result.values;
-            if (!values || values.length === 0) {
-                throw new Error('No se encontraron datos en la hoja');
+            const response = await apiService.getSheetData(this.config.range, this.scenarios.current);
+
+            if (!response.success) {
+                throw new Error(response.error || 'Error cargando datos');
             }
 
-            console.log('📊 Filas totales obtenidas de Google Sheets:', values.length);
+            const values = response.data;
+
+            if (values.length === 0) {
+                throw new Error('La hoja está vacía');
+            }
+
+            console.log('📊 Filas totales obtenidas desde backend:', values.length);
             console.log('📋 Encabezados:', values[0]);
-            
+
             this.processSheetData(values);
             this.applyFilters();
             this.updateDashboard();
-            
+
         } catch (error) {
-            console.error('Error cargando datos:', error);
+            console.error('Error cargando datos desde backend:', error);
             throw error;
         }
     }
@@ -3353,183 +3364,6 @@ class GestorSuroDashboard {
         }
 
         return { hasChanges: false, changeType: null, details: null };
-    }
-
-    /**
-     * MÉTODO FALLBACK: Se conecta al backend API cuando Google APIs está bloqueado
-     */
-    async connectToBackendFallback() {
-        const debugLog = (step, message, data = null) => {
-            const timestamp = new Date().toLocaleTimeString();
-            console.log(`🔄 [${timestamp}] Backend ${step}: ${message}`, data || '');
-            this.updateConnectionStatus(`Backend ${step}: ${message}`);
-        };
-
-        try {
-            debugLog(1, 'Conectando a backend API...');
-
-            // Test de conectividad con el backend
-            const healthCheck = await apiService.testConnectivity();
-            if (!healthCheck.success) {
-                throw new Error(`Backend no disponible: ${healthCheck.error}`);
-            }
-            debugLog(1.1, `✅ Backend conectado (${healthCheck.duration}ms)`);
-
-            // Validación con Google Sheets via backend
-            const validation = await apiService.validateConnection();
-            if (!validation.success) {
-                throw new Error(`Google Sheets no accesible: ${validation.error}`);
-            }
-            debugLog(2, `✅ Google Sheets validado: "${validation.title}"`);
-
-            // Cargar datos usando métodos backend
-            debugLog(3, 'Cargando datos base...');
-            await this.loadBaseDataViaBackend();
-
-            debugLog(4, 'Descubriendo escenarios...');
-            await this.loadAvailableScenariosViaBackend();
-
-            debugLog(5, 'Cargando configuración financiera...');
-            await this.loadFinancialConfigViaBackend();
-
-            debugLog(6, 'Cargando datos principales...');
-            await this.loadSheetDataViaBackend();
-
-            this.isConnected = true;
-            debugLog(7, '🎉 ¡CONEXIÓN EXITOSA VIA BACKEND! Dashboard listo');
-            this.updateConnectionStatus('Conectado via Backend API', true);
-
-        } catch (error) {
-            console.error('❌ Error en backend fallback:', error);
-            this.updateConnectionStatus(`❌ Error backend: ${error.message}`, false);
-            throw error;
-        }
-    }
-
-    /**
-     * Carga datos base via backend API
-     */
-    async loadBaseDataViaBackend() {
-        try {
-            const response = await apiService.getSheetData(this.config.range, 'Base');
-            if (!response.success) return;
-
-            const rows = response.data;
-            if (rows.length === 0) return;
-
-            const headers = rows[0];
-            this.baseScenarioData = [];
-
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                const cliente = {};
-                headers.forEach((header, index) => {
-                    if (header) cliente[header] = row[index] || '';
-                });
-                if (cliente.Cliente || cliente.cliente) {
-                    this.baseScenarioData.push(cliente);
-                }
-            }
-        } catch (error) {
-            console.log('⚠️ Error cargando datos base via backend:', error.message);
-        }
-    }
-
-    /**
-     * Carga escenarios disponibles via backend API
-     */
-    async loadAvailableScenariosViaBackend() {
-        try {
-            const response = await apiService.getAvailableSheets();
-            if (!response.success) throw new Error(response.error);
-
-            const sheets = response.sheets;
-            const availableSheets = sheets
-                .filter(sheet => !sheet.hidden)
-                .filter(sheet => !sheet.title.startsWith('Config'))
-                .map(sheet => sheet.title);
-
-            this.scenarios.available = availableSheets;
-            this.scenarios.sheets = {};
-            sheets.forEach(sheet => {
-                this.scenarios.sheets[sheet.title] = sheet;
-            });
-
-            if (availableSheets.includes('Base')) {
-                this.scenarios.current = 'Base';
-            } else if (availableSheets.length > 0) {
-                this.scenarios.current = availableSheets[0];
-            }
-
-            this.updateScenarioSelector();
-            if (this.scenarios.current) {
-                await this.loadSelectedScenario(true);
-            }
-        } catch (error) {
-            console.error('Error obteniendo escenarios via backend:', error);
-            this.scenarios.available = ['Base'];
-            this.updateScenarioSelector();
-        }
-    }
-
-    /**
-     * Carga configuración financiera via backend API
-     */
-    async loadFinancialConfigViaBackend() {
-        try {
-            const response = await apiService.getFinancialConfig(this.scenarios.current);
-            if (response.success && response.config) {
-                this.financialConfig = {
-                    'nexo-venta': 0, 'directa-venta': 0,
-                    'nexo-costo': 0, 'directa-costo': 0,
-                    'nexo-ICA': 0, 'directa-ICA': 0,
-                    'nexo-recursos': [], 'directa-recursos': []
-                };
-
-                Object.entries(response.config).forEach(([campo, data]) => {
-                    if (campo.includes('recursos')) {
-                        this.processConfigResource(campo, data.valor, data.cantidad);
-                    } else {
-                        this.financialConfig[campo] = data.valor;
-                    }
-                });
-                this.updateFinancialSummary();
-            }
-        } catch (error) {
-            console.log('⚠️ Error cargando configuración financiera via backend:', error.message);
-        }
-    }
-
-    /**
-     * Carga datos de hoja via backend API
-     */
-    async loadSheetDataViaBackend() {
-        try {
-            const response = await apiService.getSheetData(this.config.range, this.scenarios.current);
-            if (!response.success) throw new Error(response.error);
-
-            const rows = response.data;
-            if (rows.length === 0) throw new Error('La hoja está vacía');
-
-            const headers = rows[0];
-            this.rawData = [];
-
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                const cliente = {};
-                headers.forEach((header, index) => {
-                    if (header) cliente[header] = row[index] || '';
-                });
-                if (cliente.Cliente || cliente.cliente) {
-                    this.rawData.push(cliente);
-                }
-            }
-
-            this.updateDashboard();
-        } catch (error) {
-            console.error('Error cargando datos via backend:', error);
-            throw error;
-        }
     }
 }
 
