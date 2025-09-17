@@ -352,6 +352,8 @@ class GestorSuroDashboard {
      */
     updateConnectionStatus(message, isConnected = null) {
         const statusElement = document.getElementById('connectionStatus');
+        const connectBtn = document.getElementById('connectBtn');
+
         if (!statusElement) return;
 
         if (isConnected !== null) {
@@ -359,6 +361,17 @@ class GestorSuroDashboard {
             statusElement.innerHTML = isConnected
                 ? '<i class="fas fa-circle"></i> Conectado'
                 : '<i class="fas fa-circle"></i> Desconectado';
+
+            // Actualizar texto del botón según el estado
+            if (connectBtn) {
+                if (isConnected) {
+                    connectBtn.textContent = 'Actualizar Datos';
+                } else {
+                    connectBtn.textContent = 'Conectar';
+                }
+            }
+
+            this.isConnected = isConnected;
         } else {
             // Solo actualizar el texto para estados de progreso
             statusElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
@@ -395,11 +408,142 @@ class GestorSuroDashboard {
         // Filtrar datos según criterios actuales
         this.filterData();
 
-        // Actualizar componentes básicos
+        // Actualizar componentes principales
+        this.updateTable();
         this.updateMetrics();
         this.updateScenarioIndicator();
 
         console.log('✅ Dashboard actualizado');
+    }
+
+    /**
+     * Actualiza la tabla de datos con paginación y columnas filtradas
+     */
+    updateTable() {
+        const table = document.getElementById('clientsTable');
+        if (!table) {
+            console.log('⚠️ Tabla de clientes no encontrada en el DOM');
+            return;
+        }
+
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+
+        // Limpiar tabla
+        if (thead) thead.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
+
+        if (this.filteredData.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="100%" style="text-align: center; padding: 15px;">No hay datos para mostrar</td></tr>';
+            }
+            this.updatePaginationControls();
+            return;
+        }
+
+        // Obtener columnas filtradas (excluyendo las no deseadas)
+        const allColumns = Object.keys(this.filteredData[0]);
+        let columns = allColumns.filter(column =>
+            !this.excludedColumns.some(excluded =>
+                column.toLowerCase().includes(excluded.toLowerCase()) ||
+                excluded.toLowerCase().includes(column.toLowerCase())
+            )
+        );
+
+        // Crear encabezados dinámicamente
+        if (thead) {
+            const headerRow = document.createElement('tr');
+            columns.forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column;
+                th.style.cursor = 'pointer';
+                th.addEventListener('click', () => this.handleColumnSort(column));
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+        }
+
+        // Calcular datos para la página actual
+        const startIndex = (this.pagination.currentPage - 1) * this.pagination.itemsPerPage;
+        const endIndex = startIndex + this.pagination.itemsPerPage;
+        const pageData = this.filteredData.slice(startIndex, endIndex);
+
+        // Crear filas de datos
+        if (tbody) {
+            pageData.forEach(row => {
+                const tr = document.createElement('tr');
+                columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = row[column] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Actualizar controles de paginación
+        this.updatePaginationControls();
+
+        console.log(`📋 Tabla actualizada: ${pageData.length} filas mostradas de ${this.filteredData.length} total`);
+    }
+
+    /**
+     * Maneja el ordenamiento de columnas
+     */
+    handleColumnSort(column) {
+        if (this.sortConfig.column === column) {
+            this.sortConfig.direction = this.sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortConfig.column = column;
+            this.sortConfig.direction = 'desc';
+        }
+
+        this.applySorting();
+        this.updateTable();
+    }
+
+    /**
+     * Aplica ordenamiento a los datos filtrados
+     */
+    applySorting() {
+        if (!this.sortConfig.column) return;
+
+        this.filteredData.sort((a, b) => {
+            let valueA = a[this.sortConfig.column];
+            let valueB = b[this.sortConfig.column];
+
+            // Convertir a números si es posible
+            const numA = parseFloat(valueA);
+            const numB = parseFloat(valueB);
+
+            if (!isNaN(numA) && !isNaN(numB)) {
+                valueA = numA;
+                valueB = numB;
+            } else {
+                valueA = String(valueA || '').toLowerCase();
+                valueB = String(valueB || '').toLowerCase();
+            }
+
+            if (this.sortConfig.direction === 'asc') {
+                return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+            } else {
+                return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+            }
+        });
+    }
+
+    /**
+     * Actualiza los controles de paginación
+     */
+    updatePaginationControls() {
+        this.pagination.totalPages = Math.ceil(this.filteredData.length / this.pagination.itemsPerPage);
+
+        // Actualizar controles de paginación si existen
+        const paginationContainer = document.getElementById('paginationControls');
+        if (paginationContainer) {
+            // Implementar controles de paginación básicos
+            console.log(`📄 Página ${this.pagination.currentPage} de ${this.pagination.totalPages}`);
+        }
     }
 
     /**
